@@ -6,94 +6,109 @@
 /*   By: hlriabts <hlriabts@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/01/06 19:43:36 by hlriabts          #+#    #+#             */
-/*   Updated: 2018/01/24 23:56:32 by hlriabts         ###   ########.fr       */
+/*   Updated: 2018/01/25 20:28:52 by hlriabts         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ft_printf.h"
 
-int print_list(t_printf *list)
+void			clear_lst(t_printf *list)
 {
-	int i;
+	if ((list)->flags)
+		free((list)->flags);
+	if ((list)->pre_con)
+		free((list)->pre_con);
+	if ((list)->ctent)
+		free((list)->ctent);
+	if (list)
+		free(list);
+}
+
+wchar_t			*str_uni_null(wchar_t *s)
+{
+	if (!s)
+		return (L"(null)");
+	else
+		return (s);
+}
+
+int				print_list(t_printf **list)
+{
+	int			i;
+	t_printf	*buf;
 
 	i = 0;
-	while (list)
+	while ((*list))
 	{
-		if (list->pre_content )
+		if ((*list)->pre_con)
+			i += write(1, (*list)->pre_con, ft_strlen((*list)->pre_con));
+		if ((*list)->ctent)
 		{
-			write(1,list->pre_content,ft_strlen(list->pre_content));
-			i += ft_strlen(list->pre_content);
+			write(1, (*list)->ctent, ft_strlen((*list)->ctent));
+			i += ft_strlen((*list)->ctent);
+			if (((*list)->c == 'c' || (*list)->c == 'C')
+				&& (*list)->dop_ind != 0)
+				i += write(1, &((*list)->ctent[ft_strlen((*list)->ctent)]), 1);
 		}
-		if (list->content )
-		{
-			write(1,list->content,ft_strlen(list->content));
-			i += ft_strlen(list->content);
-			if ((list->con == 'c' || list->con == 'C') && list->dop_ind != 0)
-			{
-				write(1,&(list->content[ft_strlen(list->content)]),1);
-				i++;
-			}
-		}
-		list = list->next;
+		buf = (*list)->next;
+		clear_lst(*list);
+		(*list) = buf;
 	}
-	return(i);
+	return (i);
 }
-void function_find(t_printf *list, va_list arguments)
+
+void			function_find(t_printf *list, va_list arguments)
 {
 	char *buf;
 
 	buf = NULL;
-	// list->precision = (list->precision == -1 &&
-	// 	!ft_strchr("pdiouxXDOU", list->con)) ? 0 : list->precision;
-	if (list->con == 'p')
+	if (list->c == 'p')
 	{
-		list->con = 'x';
-		list->c_fl = 'l';
-		list->flags = ft_strjoin(list->flags, "#p");
+		list->c = 'x';
+		list->cf = 'l';
+		list->flags = ft_join(&(list->flags), "#p");
 	}
-	if (ft_strchr("pdiouxXDOU", list->con))
-		pre_int(list,arguments);
-	else if (ft_strchr("csCS", list->con))
+	if (ft_strchr("pdiouxXDOU", list->c))
+		pre_int(list, arguments);
+	else if (ft_strchr("csCS", list->c))
 	{
-	 	if (list->con == 's' && list->c_fl !='l')
-	 		if(!(buf =  va_arg(arguments, char *)))
-	 			buf = "(null)";
-	 	pre_char(list,arguments,buf, list->con);
-	 	str_post_flag(list);
+		if (list->c == 's' && list->cf != 'l')
+			if (!(buf = va_arg(arguments, char *)))
+				buf = "(null)";
+		pre_char(list, arguments, buf, list->c);
+		str_post_flag(list);
 	}
 	else
 	{
-		pre_char(list,arguments,buf, list->con);
+		pre_char(list, arguments, buf, list->c);
 		str_post_flag(list);
 	}
 }
-int	ft_printf (const char * format, ...)
+
+int				ft_printf(const char *form, ...)
 {
-	t_printf *arg_list;
-	t_printf *head;
+	t_printf	*arg_list;
+	t_printf	*head;
 	va_list		ap;
-	int start;
-	int end;
+	int			st;
+	int			end;
 
 	arg_list = NULL;
-	va_start(ap, format);
-	start = 0;
+	va_start(ap, form);
+	st = 0;
 	arg_list = list_init(arg_list);
 	head = arg_list;
-	while (format[start] != '\0')
+	while (form[st] != '\0')
 	{
-		if (pre_content_copy(format, &arg_list, &start) == 0 || format[start - 1] == '\0')
-			break;
-		end = find_conv_prec_width(format, start, arg_list);	
-		find_flags(format, start, end, arg_list);
-		//printf("\ncon=%c flags=%s width=%d prec=%d conv_fl=%c precontent=%s, content=%s",arg_list->con,arg_list->flags,arg_list->min_width,arg_list->precision,arg_list->c_fl,arg_list->pre_content,arg_list->content );
+		if (pre_con_cpy(form, &arg_list, &st) == 0 || form[st - 1] == '\0')
+			break ;
+		end = find_conv_prec_width(form, st, arg_list);
+		find_flags(form, st, end, arg_list);
 		function_find(arg_list, ap);
-		
 		arg_list->next = list_init(arg_list);
 		arg_list = arg_list->next;
-		start = end + 1;	
+		st = end + 1;
 	}
 	va_end(ap);
-	return (print_list(head));
+	return (print_list(&head));
 }
-/*функцию каста в нужный формат для чисел.*/
